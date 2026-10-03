@@ -1,4 +1,4 @@
-# llm-platform
+# 🤖 llm-platform
 
 A self-hosted, private LLM platform: an OpenAI-compatible gateway with per-user keys, budgets, spend tracking and metrics, in front of open-weight Qwen models. Terminal clients only (opencode, `llm`/`aichat`). No web UI.
 
@@ -52,11 +52,11 @@ cp stack/.env.example stack/.env          # fill in; secrets: openssl rand -hex 
 docker compose -f stack/compose.yaml up -d
 ```
 
-| Service    | URL                         |
-|------------|-----------------------------|
+| Service    | URL                                                             |
+| ---------- | --------------------------------------------------------------- |
 | LiteLLM    | http://localhost:4000 (UI at `/ui`, login `admin` / master key) |
-| Grafana    | http://localhost:3000       |
-| Prometheus | http://localhost:9090       |
+| Grafana    | http://localhost:3000                                           |
+| Prometheus | http://localhost:9090                                           |
 
 All ports are bound to `127.0.0.1`. Optional profiles: `--profile debug` (pgAdmin on :5050) and `--profile linux` (node-exporter, only useful on a Linux host).
 
