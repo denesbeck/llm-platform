@@ -1,0 +1,19 @@
+model_list:
+  - model_name: qwen-small # the alias clients see
+    litellm_params:
+      model: ollama_chat/qwen3-8b-32k # ollama_chat/ (not ollama/) for tool calls; name = what you `ollama create`d
+      api_base: os.environ/OLLAMA_API_BASE # M0: host.docker.internal, M2: the Mac's tailnet name
+      input_cost_per_token: 0.0000001 # notional pricing so spend tracking shows numbers
+      output_cost_per_token: 0.0000004
+      think: false # qwen3 thinks before every reply by default (500+ tokens/turn); too slow for agent use on the Mac
+    model_info:
+      supports_function_calling: true
+
+litellm_settings:
+  callbacks: ["prometheus"] # exposes /metrics/ on :4000
+  require_auth_for_metrics_endpoint: false # Prometheus scrapes without a key; :4000 is localhost-only (M0) / tailnet-only (M2)
+  turn_off_message_logging: true # prompts off, metadata only
+  drop_params: true # ignore OpenAI params Ollama doesn't support instead of erroring
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY

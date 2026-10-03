@@ -1,0 +1,20 @@
+{
+	"$schema": "https://opencode.ai/config.json",
+	"provider": {
+		"litellm": {
+			"npm": "@ai-sdk/openai-compatible",
+			"name": "LiteLLM (llm-platform)",
+			"options": {
+				"baseURL": "http://localhost:4000/v1",
+				"apiKey": "{env:LITELLM_API_KEY}"
+			},
+			"models": {
+				"qwen-small": {
+					"name": "Qwen3 8B (Ollama)",
+					"limit": { "context": 32768, "output": 8192 }
+				}
+			}
+		}
+	},
+	"model": "litellm/qwen-small"
+}

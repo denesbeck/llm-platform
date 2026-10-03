@@ -1,0 +1,20 @@
+# env vars
+.env
+
+# terraform
+*.tfstate*
+.terraform/
+*.tfvars
+!*.tfvars.example
+
+# compose stack
+postgres_data/
+
+# client configs (they hold API keys); commit templates as *.example.*
+clients/**/*
+!clients/**/
+!clients/.keep
+!clients/**/*.example.*
+
+# macOS
+.DS_Store

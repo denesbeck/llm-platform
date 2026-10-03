@@ -1,0 +1,111 @@
+volumes:
+  prometheus_data: {}
+  grafana_data: {}
+
+services:
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    shm_size: 256mb
+    container_name: postgres
+    hostname: postgres
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      - POSTGRES_DB=litellm
+      - POSTGRES_USER=litellm
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - ./postgres_data:/var/lib/postgresql # parent dir, so a future pg_upgrade sees both major versions
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U litellm -d litellm"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  pgadmin:
+    image: dpage/pgadmin4
+    profiles: ["debug"] # docker compose --profile debug up
+    container_name: pgadmin
+    hostname: pgadmin
+    ports:
+      - "127.0.0.1:5050:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD}
+  litellm:
+    image: ghcr.io/berriai/litellm:v1.103.2 # multi-arch (amd64 + arm64)
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4000:4000"
+    env_file:
+      - .env # LITELLM_MASTER_KEY, LITELLM_SALT_KEY, OLLAMA_API_BASE
+    environment:
+      DATABASE_URL: "postgresql://litellm:${POSTGRES_PASSWORD}@postgres:5432/litellm"
+    volumes:
+      - ./litellm/config.yaml:/app/config.yaml:ro
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck: # Defines the health check configuration for the container
+      test:
+        - CMD-SHELL
+        - python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:4000/health/liveliness')" # Command to execute for health check
+      interval: 30s # Perform health check every 30 seconds
+      timeout: 10s # Health check command times out after 10 seconds
+      retries: 3 # Retry up to 3 times if health check fails
+      start_period: 40s # Wait 40 seconds after container start before beginning health checks
+  prometheus:
+    image: prom/prometheus:v3.14.0
+    container_name: prometheus
+    hostname: prometheus
+    volumes:
+      - ./prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--storage.tsdb.wal-compression"
+      - "--web.enable-lifecycle"
+    ports:
+      - 127.0.0.1:9090:9090
+    restart: unless-stopped
+  node-exporter:
+    image: prom/node-exporter:v1.12.1
+    profiles: ["linux"] # host metrics are only meaningful on a Linux host (EC2), not Docker Desktop's VM
+    container_name: node-exporter
+    hostname: node-exporter
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+      - /run/udev/data:/run/udev/data:ro
+      - /var/lib/node-exporter/textfile:/host/textfile:ro
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--path.rootfs=/rootfs"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($|/)"
+      - "--collector.processes"
+      - "--collector.interrupts"
+      - "--no-collector.systemd"
+      - "--collector.textfile.directory=/host/textfile"
+    ports:
+      - "127.0.0.1:9100:9100"
+    restart: unless-stopped
+  grafana:
+    image: grafana/grafana:13.2.2
+    container_name: grafana
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+    ports:
+      - "127.0.0.1:3000:3000"
+    restart: unless-stopped

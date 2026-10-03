@@ -1,0 +1,16 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: "litellm"
+    metrics_path: /metrics/ # /metrics answers with a 307 to /metrics/
+    static_configs:
+      - targets: ["litellm:4000"] # needs callbacks: ["prometheus"] in litellm/config.yaml
+
+  - job_name: "node"
+    static_configs:
+      - targets: ["node-exporter:9100"] # only up with --profile linux (EC2)
