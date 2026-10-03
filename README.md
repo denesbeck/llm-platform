@@ -1,9 +1,9 @@
 # 🤖 llm-platform
 
-A self-hosted, private LLM platform: an OpenAI-compatible gateway with per-user keys, budgets, spend tracking and metrics, in front of open-weight Qwen models. Terminal clients only (opencode, `llm`/`aichat`). No web UI.
+A self-hosted, private LLM platform: an OpenAI-compatible gateway with per-user keys, budgets, spend tracking and metrics, in front of open-weight Qwen models. The client is opencode, in the terminal. No web UI.
 
 ```text
-opencode / llm ──► LiteLLM gateway ──► Ollama on the Mac   (qwen-small, dev)
+opencode ───────► LiteLLM gateway ──► Ollama on the Mac   (qwen-small, dev)
                      │                └► vLLM on a spot L4  (qwen-large, M3)
                      ├─ Postgres   keys, users, teams, spend logs
                      └─ Prometheus + Grafana
@@ -23,6 +23,8 @@ scripts/          verify-mN.sh per milestone
 terraform/        AWS (M1+)
 gpu/              vLLM + DCGM on the GPU instance (M3)
 users/            simulated users, teams and budgets (M4)
+Makefile          local shortcuts (make help)
+.github/          CI: compose config, yamllint, shellcheck, terraform fmt/validate, tflint
 ```
 
 ## Running it locally (M0)
@@ -39,8 +41,7 @@ OLLAMA_FLASH_ATTENTION=1 OLLAMA_KV_CACHE_TYPE=q8_0 OLLAMA_KEEP_ALIVE=30m ollama 
 Then, in another terminal:
 
 ```bash
-ollama pull qwen3:8b
-ollama create qwen3-8b-32k -f stack/ollama/Modelfile   # same model, 32k context
+make model    # ollama pull qwen3:8b + ollama create qwen3-8b-32k -f stack/ollama/Modelfile
 ```
 
 The Modelfile raises `num_ctx` to 32k, because the small default silently truncates agent prompts. Flash attention with the `q8_0` KV cache halves the cache's memory, which keeps a 16 GB Mac out of swap.
@@ -49,7 +50,7 @@ The Modelfile raises `num_ctx` to 32k, because the small default silently trunca
 
 ```bash
 cp stack/.env.example stack/.env          # fill in; secrets: openssl rand -hex 24
-docker compose -f stack/compose.yaml up -d
+make stack-up                             # docker compose -f stack/compose.yaml up -d
 ```
 
 | Service    | URL                                                             |
@@ -63,10 +64,7 @@ All ports are bound to `127.0.0.1`. Optional profiles: `--profile debug` (pgAdmi
 **3. A virtual key.** The master key is for admin calls only. Clients get virtual keys:
 
 ```bash
-set -a; . stack/.env; set +a
-curl -s localhost:4000/key/generate -H "Authorization: Bearer $LITELLM_MASTER_KEY" \
-  -H 'Content-Type: application/json' \
-  -d '{"models":["qwen-small"],"user_id":"me","key_alias":"me-opencode"}' | jq -r .key
+make key                # or: make key NAME=alice; calls /key/generate with the master key from stack/.env
 ```
 
 The key is shown only once, because LiteLLM stores only a hash of it.
@@ -74,16 +72,16 @@ The key is shown only once, because LiteLLM stores only a hash of it.
 **4. opencode.**
 
 ```bash
-export OPENCODE_CONFIG="$PWD/clients/opencode/opencode.example.json"   # absolute path
-export LITELLM_API_KEY=sk-...                                           # the virtual key
-opencode
+export LITELLM_API_KEY=sk-...   # the virtual key
+make oc                         # opencode with OPENCODE_CONFIG=<absolute path to clients/opencode/opencode.example.json>
 ```
 
 **5. Verify.**
 
 ```bash
-scripts/verify-m0.sh                  # ~2 min, mostly the opencode check
-SKIP_OPENCODE=1 scripts/verify-m0.sh  # ~15 s
+make verify        # scripts/verify-m0.sh, ~2 min, mostly the opencode check
+make verify-fast   # without the opencode check, ~15 s
+make lint          # the CI checks, locally
 ```
 
 The script creates a temporary key (user `verify-m0`) and deletes it on exit. It checks that keys are enforced, that `/v1/models` lists the model, that streaming works, that a tool call comes back as `tool_calls`, that requests appear in the spend logs, that Prometheus is scraping LiteLLM, and that opencode can finish a small task.

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # M0 verification: the local stack on the Mac (opencode → LiteLLM → Ollama/Qwen).
-# Covers R3, R5, R6, R7, R8, R12 (local), R20, R21 from the requirements.
+# Covers R3, R5, R6, R7, R8, R12 (local) and R20 from the requirements (R21 dropped, CR-004).
 #
 # Usage: scripts/verify-m0.sh              # full run (the opencode check takes a few minutes)
 #        SKIP_OPENCODE=1 scripts/verify-m0.sh
@@ -25,7 +25,10 @@ for bin in curl jq docker ollama; do
   command -v "$bin" >/dev/null || { echo "missing dependency: $bin" >&2; exit 2; }
 done
 [ -f "$STACK/.env" ] || { echo "missing $STACK/.env (copy .env.example)" >&2; exit 2; }
-set -a; . "$STACK/.env"; set +a
+set -a
+# shellcheck source=/dev/null
+. "$STACK/.env"
+set +a
 
 admin() { curl -s -m 30 -H "Authorization: Bearer $LITELLM_MASTER_KEY" -H 'Content-Type: application/json' "$@"; }
 
@@ -58,9 +61,9 @@ user() { curl -s -m 300 -H "Authorization: Bearer $KEY" -H 'Content-Type: applic
 # --- auth --------------------------------------------------------------------
 section "Auth"
 code=$(curl -s -o /dev/null -w '%{http_code}' -m 10 "$GATEWAY/v1/models")
-[ "$code" = 401 ] && ok "R3 request without a key is rejected (401)" || bad "R3 request without a key is rejected (401)" "got $code"
+if [ "$code" = 401 ]; then ok "R3 request without a key is rejected (401)"; else bad "R3 request without a key is rejected (401)" "got $code"; fi
 code=$(curl -s -o /dev/null -w '%{http_code}' -m 10 -H 'Authorization: Bearer sk-not-a-real-key' "$GATEWAY/v1/models")
-[ "$code" = 401 ] && ok "R3 request with an invalid key is rejected (401)" || bad "R3 request with an invalid key is rejected (401)" "got $code"
+if [ "$code" = 401 ]; then ok "R3 request with an invalid key is rejected (401)"; else bad "R3 request with an invalid key is rejected (401)" "got $code"; fi
 if grep -rqF "$LITELLM_MASTER_KEY" "$ROOT/clients" 2>/dev/null; then
   bad "R5 master key does not appear in client configs" "found in $ROOT/clients"
 else
@@ -102,10 +105,10 @@ for _ in $(seq 1 18); do
   [ "${logged:-0}" -gt 0 ] && break
   sleep 5
 done
-[ "${logged:-0}" -gt 0 ] && ok "requests show up in spend logs for user verify-m0 ($logged)" || bad "requests show up in spend logs for user verify-m0" "nothing after 90s"
+if [ "${logged:-0}" -gt 0 ]; then ok "requests show up in spend logs for user verify-m0 ($logged)"; else bad "requests show up in spend logs for user verify-m0" "nothing after 90s"; fi
 
 health=$(curl -s -m 5 "$PROMETHEUS/api/v1/targets" | jq -r '.data.activeTargets[] | select(.labels.job == "litellm") | .health')
-[ "$health" = up ] && ok "Prometheus scrapes LiteLLM" || bad "Prometheus scrapes LiteLLM" "target health: ${health:-missing}"
+if [ "$health" = up ]; then ok "Prometheus scrapes LiteLLM"; else bad "Prometheus scrapes LiteLLM" "target health: ${health:-missing}"; fi
 
 # --- clients -----------------------------------------------------------------
 section "Clients"
@@ -123,12 +126,6 @@ else
   else
     bad "R20 opencode completes a task" "$(tail -5 <<<"$out")"
   fi
-fi
-
-if command -v llm >/dev/null || command -v aichat >/dev/null; then
-  skp "R21 quick-chat client: installed, but not checked automatically yet"
-else
-  skp "R21 quick-chat client (neither llm nor aichat is installed)"
 fi
 
 printf '\n%d passed, %d failed, %d skipped\n' "$pass" "$fail" "$skip"

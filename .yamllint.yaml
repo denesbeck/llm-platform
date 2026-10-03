@@ -1,0 +1,11 @@
+extends: default
+
+ignore-from-file: .gitignore
+
+rules:
+  document-start: disable
+  line-length: disable # long inline comments explain config choices
+  truthy:
+    check-keys: false # GitHub Actions' `on:` key
+  comments:
+    min-spaces-from-content: 1
