@@ -4,7 +4,7 @@ OLLAMA_MODEL    := qwen3-8b-32k
 # Not USER: make imports the shell's $USER (the login name).
 NAME            ?= $(shell whoami)
 
-.PHONY: help stack-up stack-down stack-ps stack-logs model key oc verify verify-fast lint
+.PHONY: help stack-up stack-down stack-ps stack-logs model key oc verify verify-fast verify-m1 lint
 
 help:
 	@echo "stack-up      start the local stack (LiteLLM, Postgres, Prometheus, Grafana)"
@@ -16,6 +16,7 @@ help:
 	@echo "oc            start opencode against the gateway (needs LITELLM_API_KEY)"
 	@echo "verify        run scripts/verify-m0.sh (~2 min, includes an opencode task)"
 	@echo "verify-fast   same, without the opencode task"
+	@echo "verify-m1     run scripts/verify-m1.sh (AWS foundation; AWS_PROFILE defaults to admin)"
 	@echo "lint          run the CI checks locally"
 
 stack-up:
@@ -49,6 +50,9 @@ verify:
 
 verify-fast:
 	SKIP_OPENCODE=1 scripts/verify-m0.sh
+
+verify-m1:
+	scripts/verify-m1.sh
 
 lint:
 	$(COMPOSE) --profile linux --profile debug config -q
