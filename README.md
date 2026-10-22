@@ -9,7 +9,7 @@ opencode ───────► LiteLLM gateway ──► Ollama on the Mac   
                      └─ Prometheus + Grafana
 ```
 
-**Status:** M0 done, which means the whole stack runs locally on the Mac. Next up are the AWS control plane (EC2 + Tailscale, M1–M2) and the GPU backend (vLLM on spot, M3).
+**Status:** M1 done. The whole stack runs locally on the Mac (M0), and the AWS foundation exists: network, IAM roles, secrets in SSM and a budget, checked by `make verify-m1`. Next up are the control plane on EC2 with Tailscale (M2) and the GPU backend (vLLM on spot, M3).
 
 ## Layout
 
