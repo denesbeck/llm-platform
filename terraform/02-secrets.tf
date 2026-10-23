@@ -38,9 +38,10 @@ resource "aws_ssm_parameter" "litellm_salt_key" {
   value_wo         = ephemeral.random_password.litellm_salt_key.result
   value_wo_version = 1
 
-  lifecycle {
-    prevent_destroy = true
-  }
+  # WARN: uncomment this when going live
+  # lifecycle {
+  #   prevent_destroy = true
+  # }
 }
 
 resource "aws_ssm_parameter" "postgres_pwd" {

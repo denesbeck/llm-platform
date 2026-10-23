@@ -44,11 +44,21 @@ resource "aws_budgets_budget" "llm_platform_budget" {
 }
 
 # account-wide setting, never deactivate it from here
-resource "aws_ce_cost_allocation_tag" "app" {
-  tag_key = "App"
-  status  = "Active"
+# INFO: run this when you apply the infra for the first time
+# resource "aws_ce_cost_allocation_tag" "app" {
+#   tag_key = "App"
+#   status  = "Active"
+#
+#   lifecycle {
+#     prevent_destroy = true
+#   }
+# }
+
+# after creating the cost allocation tag, forget it, so it can stay active even after destroying the infra
+removed {
+  from = aws_se_cost_allocation_tag.app
 
   lifecycle {
-    prevent_destroy = true
+    destroy = false
   }
 }
